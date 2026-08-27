@@ -151,56 +151,83 @@ namespace geode {
          */
         template <std::integral Num> requires (!std::same_as<std::remove_cv_t<Num>, bool>)
         std::string numToAbbreviatedString(Num num) {
-            bool negative = false;
-            uint64_t abs = 0;
-
-            if constexpr (std::is_signed_v<Num>) {
-                if (num < 0) {
-                    negative = true;
-                    abs = static_cast<uint64_t>(0) - static_cast<uint64_t>(num);
-                }
-                else {
-                    abs = static_cast<uint64_t>(num);
-                }
-            }
-            else {
-                abs = static_cast<uint64_t>(num);
-            }
-
-            struct Scale {
+            struct ScaleTier {
                 uint64_t threshold;
                 std::string_view suffix;
             };
 
-            constexpr Scale scales[] = {
-                {1'000'000'000'000'000ull, "Q"},
-                {1'000'000'000'000ull, "T"},
-                {1'000'000'000ull, "B"},
-                {1'000'000ull, "M"},
+            static constexpr std::array<ScaleTier, 5> kScales{{
                 {1'000ull, "K"},
+                {1'000'000ull, "M"},
+                {1'000'000'000ull, "B"},
+                {1'000'000'000'000ull, "T"},
+                {1'000'000'000'000'000ull, "Q"},
+            }};
+
+            bool const isNegative = std::is_signed_v<Num> && num < 0;
+            uint64_t const magnitude =
+                isNegative ? (0ull - static_cast<uint64_t>(num)) : static_cast<uint64_t>(num);
+
+            if (magnitude < kScales[0].threshold) {
+                return numToString(num);
+            }
+
+            std::size_t tier = 0;
+            for (std::size_t i = 0; i < kScales.size(); ++i) {
+                if (magnitude >= kScales[i].threshold) {
+                    tier = i;
+                }
+            }
+
+            auto decimalPlacesFor = [](uint64_t whole) {
+                return (whole >= 100) ? 0 : (whole >= 10) ? 1 : 2;
             };
 
-            for (auto const& [threshold, suffix] : scales) {
-                if (abs < threshold) {
+            uint64_t wholePart = 0, fractionalPart = 0;
+            int decimalPlaces = 0;
+
+            for (;;) {
+                uint64_t const threshold = kScales[tier].threshold;
+                decimalPlaces = decimalPlacesFor(magnitude / threshold);
+
+                for (;;) {
+                    uint64_t scale = 1;
+                    for (int i = 0; i < decimalPlaces; ++i)
+                        scale *= 10;
+
+                    uint64_t const unit = threshold / scale;
+                    uint64_t scaled = magnitude / unit;
+                    uint64_t const remainder = magnitude % unit;
+                    if (remainder * 2 >= unit) {
+                        ++scaled;
+                    }
+
+                    wholePart = scaled / scale;
+
+                    int const needed = decimalPlacesFor(wholePart);
+                    if (needed != decimalPlaces) {
+                        decimalPlaces = needed;
+                        continue;
+                    }
+
+                    fractionalPart = scaled % scale;
+                    break;
+                }
+
+                if (wholePart >= 1000 && tier + 1 < kScales.size()) {
+                    ++tier;
                     continue;
                 }
-                uint64_t whole = abs / threshold;
-                uint64_t rem = abs % threshold;
-                std::string result;
-                if (whole >= 100) {
-                    result = fmt::format("{}{}", whole, suffix);
-                }
-                else if (whole >= 10) {
-                    uint64_t frac = rem / (threshold / 10);
-                    result = fmt::format("{}.{}{}", whole, frac, suffix);
-                }
-                else {
-                    uint64_t frac = rem / (threshold / 100);
-                    result = fmt::format("{}.{:02d}{}", whole, frac, suffix);
-                }
-                return negative ? "-" + result : result;
+
+                break;
             }
-            return numToString(num);
+
+            std::string_view const suffix = kScales[tier].suffix;
+            std::string formatted = (decimalPlaces == 0) ?
+                fmt::format("{}{}", wholePart, suffix) :
+                fmt::format("{}.{:0{}}{}", wholePart, fractionalPart, decimalPlaces, suffix);
+
+            return isNegative ? "-" + formatted : formatted;
         }
 
         namespace _detail {
