@@ -30,8 +30,14 @@ Toggler* Toggler::create(
 }
 
 Toggler* Toggler::createWithStandardSprites(
-    TogglerCallback toggleCallback,
-    float scale
+    TogglerCallback toggleCallback
+) {
+    return createWithStandardSprites(1.0f, std::move(toggleCallback));
+}
+
+Toggler* Toggler::createWithStandardSprites(
+    float scale,
+    TogglerCallback toggleCallback
 ) {
     auto offNode = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
     auto onNode = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png");
@@ -47,8 +53,16 @@ Toggler* Toggler::createWithStandardSprites(
 Toggler* Toggler::createWithSprites(
     ZStringView offFileName,
     ZStringView onFileName,
-    TogglerCallback toggleCallback,
-    float scale
+    TogglerCallback toggleCallback
+) {
+    return createWithSprites(offFileName, onFileName, 1.0f, std::move(toggleCallback));
+}
+
+Toggler* Toggler::createWithSprites(
+    ZStringView offFileName,
+    ZStringView onFileName,
+    float scale,
+    TogglerCallback toggleCallback
 ) {
     auto offNode = CCSprite::create(offFileName.c_str());
     auto onNode = CCSprite::create(onFileName.c_str());
@@ -64,8 +78,18 @@ Toggler* Toggler::createWithSprites(
 Toggler* Toggler::createWithSpriteFrameNames(
     ZStringView offFrameName,
     ZStringView onFrameName,
-    TogglerCallback toggleCallback,
-    float scale
+    TogglerCallback toggleCallback
+) {
+    return createWithSpriteFrameNames(
+        offFrameName, onFrameName, 1.0f, std::move(toggleCallback)
+    );
+}
+
+Toggler* Toggler::createWithSpriteFrameNames(
+    ZStringView offFrameName,
+    ZStringView onFrameName,
+    float scale,
+    TogglerCallback toggleCallback
 ) {
     auto offNode = CCSprite::createWithSpriteFrameName(offFrameName.c_str());
     auto onNode = CCSprite::createWithSpriteFrameName(onFrameName.c_str());
